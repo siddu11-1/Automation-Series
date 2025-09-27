@@ -1,0 +1,103 @@
+{
+  "name": "Job Application Tracker Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerOn": "update",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "range": "Sheet1!A:E"
+      },
+      "id": "1",
+      "name": "Google Sheets Trigger",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "credentials": {
+        "googleApi": "Your Google API Credential"
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const latest = items[items.length - 1].json;\nreturn [{json:{\n  name: latest[\"Name\"],\n  email: latest[\"Email\"],\n  role: latest[\"Role Applied\"],\n  resume: latest[\"Resume Link\"]\n}}];"
+      },
+      "id": "2",
+      "name": "Extract Latest Application",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "your-email@example.com",
+        "toEmail": "hr-team@example.com",
+        "subject": "New Job Application: {{$json[\"role\"]}}",
+        "text": "New Application Received \ud83d\ude80\n\nName: {{$json[\"name\"]}}\nEmail: {{$json[\"email\"]}}\nRole Applied: {{$json[\"role\"]}}\nResume: {{$json[\"resume\"]}}\n"
+      },
+      "id": "3",
+      "name": "Notify HR",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        750,
+        200
+      ],
+      "credentials": {
+        "smtp": "Your SMTP Credential"
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "your-email@example.com",
+        "toEmail": "={{$json[\"email\"]}}",
+        "subject": "Application Received: {{$json[\"role\"]}}",
+        "text": "Hello {{$json[\"name\"]}},\n\nThank you for applying for the {{$json[\"role\"]}} role.\nOur HR team will review your profile and get back to you soon.\n\nBest Regards,\nRecruitment Bot \ud83e\udd16"
+      },
+      "id": "4",
+      "name": "Confirm Applicant",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        750,
+        400
+      ],
+      "credentials": {
+        "smtp": "Your SMTP Credential"
+      }
+    }
+  ],
+  "connections": {
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Latest Application",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Latest Application": {
+      "main": [
+        [
+          {
+            "node": "Notify HR",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Confirm Applicant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
