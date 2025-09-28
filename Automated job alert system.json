@@ -1,0 +1,147 @@
+{
+  "name": "Automated job alert system",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "3673a2aa-caff-438e-8507-87d6dea41a3b",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://remotive.com/api/remote-jobs?search=Data%20Analyst",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "ba5d7f2b-4d85-4389-88b1-2e64787f9df6",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const keywords = [\"Data Analyst\", \"Python\", \"Automation\"];\n\n// Make sure jobs exist inside API response\nlet jobs = [];\nif (items[0].json.jobs) {\n  jobs = items[0].json.jobs;\n} else {\n  jobs = items.map(item => item.json);\n}\n\nreturn jobs\n  .filter(job =>\n    keywords.some(k => (job.title || \"\").includes(k))\n  )\n  .map(job => ({\n    json: {\n      title: job.title,\n      company: job.company_name,\n      location: job.candidate_required_location,\n      link: job.url\n    }\n  }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "666aeb2d-5a08-4d63-8944-22138068c55c",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "let text = \"Here are today's job alerts:\\n\\n\";\nitems.forEach((job, i) => {\n  text += `${i+1}. ${job.json.title} @ ${job.json.company_name}\\n`;\n  text += `Location: ${job.json.candidate_required_location}\\n`;\n  text += `Apply: ${job.json.url}\\n\\n`;\n});\nreturn [{json: {body: text}}];\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "bfd238a2-0a39-487d-85f2-b6e4fd3534a2",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "sendTo": "vtu21952@veltech.edu.in",
+        "subject": "Your Daily Job Alerts 🚀",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        832,
+        0
+      ],
+      "id": "568e4fb5-496c-4ebf-8084-0003932457b1",
+      "name": "Send a message",
+      "webhookId": "a3492289-8218-44b4-af08-ba62cc6494d4",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "2zRgrT1oOvMgrgUU",
+          "name": "Gmail account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "56f0994b-5538-448d-8653-533ae8f2fac4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "bc927a1abc635702a89077835188cff37807265b8c8452f8e21efd1277cc420d"
+  },
+  "id": "mgSbbHY1FeMl9Yuw",
+  "tags": []
+}
