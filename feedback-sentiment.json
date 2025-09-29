@@ -1,0 +1,127 @@
+{
+  "name": "Customer Feedback Sentiment Workflow - HuggingFace Fixed",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Google Sheets Trigger",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "authentication": "oAuth2",
+        "sheetId": "1rM6ZxjpMGxjfvmNY3R456wMDnK54HGjZpxjTEdx0U-8",
+        "range": "Sheet1!A:C"
+      },
+      "credentials": {
+        "googleApi": "Google Sheets OAuth"
+      }
+    },
+    {
+      "id": "2",
+      "name": "Extract Feedback",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "parameters": {
+        "functionCode": "const latest = items[items.length - 1].json;\nreturn [{ json: { name: latest['Name'], feedback: latest['Feedback'] } }];"
+      }
+    },
+    {
+      "id": "3",
+      "name": "HuggingFace Sentiment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [750, 300],
+      "parameters": {
+        "url": "https://api-inference.huggingface.co/models/nlptown/bert-base-multilingual-uncased-sentiment",
+        "method": "POST",
+        "responseFormat": "json",
+        "jsonParameters": true,
+        "options": {
+          "executeOnceForEachItem": true
+        },
+        "bodyParametersJson": "{ \"inputs\": \"={{$json[\\\"feedback\\\"]}}\" }",
+        "headers": [
+          {
+            "name": "Authorization",
+            "value": "Bearer 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"
+          }
+        ]
+      }
+    },
+    {
+      "id": "4",
+      "name": "Parse HuggingFace Sentiment",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [950, 300],
+      "parameters": {
+        "functionCode": "const res = items[0].json;\n\nlet label = 'Neutral';\nif (Array.isArray(res) && res[0] && res[0].label) {\n  const hfLabel = res[0].label.toUpperCase();\n  if (hfLabel.includes('1') || hfLabel.includes('2')) label = 'Negative';\n  if (hfLabel.includes('3')) label = 'Neutral';\n  if (hfLabel.includes('4') || hfLabel.includes('5')) label = 'Positive';\n}\n\nreturn [{ json: { name: $json[\"name\"], feedback: $json[\"feedback\"], sentiment: label } }];"
+      }
+    },
+    {
+      "id": "5",
+      "name": "Update Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 2,
+      "position": [1150, 250],
+      "parameters": {
+        "operation": "append",
+        "sheetId": "1rM6ZxjpMGxjfvmNY3R456wMDnK54HGjZpxjTEdx0U-8",
+        "range": "Sheet1!A:D",
+        "fields": {
+          "values": [
+            "={{$json[\"name\"]}}",
+            "={{$json[\"feedback\"]}}",
+            "={{$json[\"sentiment\"]}}"
+          ]
+        }
+      },
+      "credentials": {
+        "googleApi": "Google Sheets OAuth"
+      }
+    },
+    {
+      "id": "6",
+      "name": "IF Negative",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1150, 400],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"sentiment\"]}}",
+              "operation": "equal",
+              "value2": "Negative"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "7",
+      "name": "Send Alert Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 1,
+      "position": [1400, 400],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "to": "yourname@gmail.com",
+        "subject": "🚨 Negative Feedback Alert – {{$json[\"name\"]}}",
+        "text": "Customer: {{$json[\"name\"]}}\nFeedback: {{$json[\"feedback\"]}}\nSentiment: {{$json[\"sentiment\"]}}\n\nAction Needed: Please follow up immediately."
+      },
+      "credentials": {
+        "gmailOAuth2": "Gmail OAuth"
+      }
+    }
+  ],
+  "connections": {
+    "Google Sheets Trigger": { "main": [[{"node": "Extract Feedback","type": "main","index": 0}]] },
+    "Extract Feedback": { "main": [[{"node": "HuggingFace Sentiment","type": "main","index": 0}]] },
+    "HuggingFace Sentiment": { "main": [[{"node": "Parse HuggingFace Sentiment","type": "main","index": 0}]] },
+    "Parse HuggingFace Sentiment": { "main": [[{"node": "Update Google Sheet","type": "main","index": 0},{"node": "IF Negative","type": "main","index": 0}]] },
+    "IF Negative": { "main": [[],[{"node": "Send Alert Email","type": "main","index": 0}]] }
+  }
+}
